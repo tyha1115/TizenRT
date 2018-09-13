@@ -21,6 +21,8 @@
 #include <media/FileOutputDataSource.h>
 #include "tc_common.h"
 
+#define RECORD_DURATION 2
+
 using namespace std;
 using namespace media;
 using namespace media::stream;
@@ -44,7 +46,7 @@ static void utc_media_MediaRecorder_create_n(void)
 	MediaRecorder mr;
 	mr.create();
 
-	TC_ASSERT_EQ("utc_media_mediarecorder_create", mr.create(), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_mediarecorder_create", mr.create(), RECORDER_ERROR_INVALID_STATE);
 
 	mr.destroy();
 	TC_SUCCESS_RESULT();
@@ -63,11 +65,11 @@ static void utc_media_MediaRecorder_destroy_n(void)
 {
 	MediaRecorder mr;
 	unique_ptr<FileOutputDataSource> dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
-	TC_ASSERT_EQ("utc_media_MediaRecorder_destroy", mr.destroy(), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_MediaRecorder_destroy", mr.destroy(), RECORDER_ERROR_NOT_ALIVE);
 	mr.create();
 	mr.setDataSource(std::move(dataSource));
 	mr.prepare();
-	TC_ASSERT_EQ("utc_media_MediaRecorder_destroy", mr.destroy(), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_MediaRecorder_destroy", mr.destroy(), RECORDER_ERROR_INVALID_STATE);
 	mr.unprepare();
 	mr.destroy();
 
@@ -92,12 +94,12 @@ static void utc_media_MediaRecorder_setDataSource_n(void)
 
 	unique_ptr<FileOutputDataSource> dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
 	mr.create();
-	TC_ASSERT_EQ("utc_media_mediarecorder_setDataSource", mr.setDataSource(std::move(nullptr)), RECORDER_ERROR);
-	TC_ASSERT_EQ("utc_media_mediarecorder_setDataSource", mr2.setDataSource(std::move(dataSource)), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_mediarecorder_setDataSource", mr.setDataSource(std::move(nullptr)), RECORDER_ERROR_INVALID_PARAM);
+	TC_ASSERT_EQ("utc_media_mediarecorder_setDataSource", mr2.setDataSource(std::move(dataSource)), RECORDER_ERROR_INVALID_STATE);
 	mr.destroy();
-
 	dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
-	TC_ASSERT_EQ("utc_media_mediarecorder_setDataSource", mr.setDataSource(std::move(dataSource)), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_mediarecorder_setDataSource", mr.setDataSource(std::move(dataSource)), RECORDER_ERROR_NOT_ALIVE);
+
 	TC_SUCCESS_RESULT();
 }
 
@@ -118,11 +120,11 @@ static void utc_media_MediaRecorder_setVolume_n(void)
 {
 	MediaRecorder mr;
 	unique_ptr<FileOutputDataSource> dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
-	TC_ASSERT_EQ("utc_media_mediarecorder_setVolume", mr.setVolume(10), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_mediarecorder_setVolume", mr.setVolume(10), RECORDER_ERROR_NOT_ALIVE);
 	mr.create();
 	mr.setDataSource(std::move(dataSource));
 	mr.prepare();
-	TC_ASSERT_EQ("utc_media_mediarecorder_setVolume", mr.setVolume(11), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_mediarecorder_setVolume", mr.setVolume(11), RECORDER_OK);
 	mr.unprepare();
 	mr.destroy();
 	TC_SUCCESS_RESULT();
@@ -130,6 +132,7 @@ static void utc_media_MediaRecorder_setVolume_n(void)
 
 static void utc_media_MediaRecorder_getVolume_p(void)
 {
+	uint8_t volume;
 	MediaRecorder mr;
 	unique_ptr<FileOutputDataSource> dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
 
@@ -139,7 +142,8 @@ static void utc_media_MediaRecorder_getVolume_p(void)
 	for (int i = 0; i <= 10; ++i)
 	{
 		mr.setVolume(i);
-		TC_ASSERT_EQ("utc_media_MediaRecorder_getVolume", mr.getVolume(), i);
+		mr.getVolume(&volume);
+		TC_ASSERT_EQ("utc_media_MediaRecorder_getVolume", volume, i);
 	}
 
 	mr.unprepare();
@@ -151,7 +155,15 @@ static void utc_media_MediaRecorder_getVolume_p(void)
 static void utc_media_MediaRecorder_getVolume_n(void)
 {
 	MediaRecorder mr;
-	TC_ASSERT_EQ("utc_media_MediaRecorder_getVolume", mr.getVolume(), -1);
+	uint8_t volume;
+	unique_ptr<FileOutputDataSource> dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
+	TC_ASSERT_EQ("utc_media_MediaRecorder_getVolume", mr.getVolume(&volume), RECORDER_ERROR_NOT_ALIVE);
+	mr.create();
+	mr.setDataSource(std::move(dataSource));
+	mr.prepare();
+	TC_ASSERT_EQ("utc_media_MediaRecorder_getVolume", mr.getVolume(nullptr), RECORDER_ERROR_INVALID_PARAM);
+	mr.unprepare();
+	mr.destroy();
 
 	TC_SUCCESS_RESULT();
 }
@@ -178,7 +190,7 @@ static void utc_media_MediaRecorder_prepare_n(void)
 	mr.create();
 	mr.setDataSource(std::move(dataSource));
 	mr.prepare();
-	TC_ASSERT_EQ("utc_media_MediaRecorder_prepare", mr.prepare(), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_MediaRecorder_prepare", mr.prepare(), RECORDER_ERROR_INVALID_STATE);
 	mr.unprepare();
 	mr.destroy();
 
@@ -208,7 +220,7 @@ static void utc_media_MediaRecorder_unprepare_n(void)
 	mr.setDataSource(std::move(dataSource));
 	mr.prepare();
 	mr.unprepare();
-	TC_ASSERT_EQ("utc_media_MediaRecorder_unprepare", mr.unprepare(), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_MediaRecorder_unprepare", mr.unprepare(), RECORDER_ERROR_INVALID_STATE);
 	mr.destroy();
 
 	TC_SUCCESS_RESULT();
@@ -220,19 +232,27 @@ public:
 	RecorderTest() {}
 	~RecorderTest() {}
 
-	void onRecordStarted(Id id) override
+	void onRecordStarted(MediaRecorder& mediaRecorder) override
 	{
 		notifyStarted();
 	}
-	void onRecordPaused(Id id) override
+	void onRecordPaused(MediaRecorder& mediaRecorder) override
 	{
 		notifyPaused();
 	}
-	void onRecordFinished(Id id) override
+	void onRecordFinished(MediaRecorder& mediaRecorder) override
 	{
 		notifyFinished();
 	}
-	void onRecordError(Id id) override
+	void onRecordStartError(MediaRecorder& mediaRecorder, recorder_error_t ret) override
+	{
+		notifyError();
+	}
+	void onRecordPauseError(MediaRecorder& mediaRecorder, recorder_error_t ret) override
+	{
+		notifyError();
+	}
+	void onRecordStopError(MediaRecorder& mediaRecorder, recorder_error_t ret) override
 	{
 		notifyError();
 	}
@@ -288,6 +308,85 @@ private:
 	std::condition_variable cvFinished;
 	std::condition_variable cvError;
 };
+
+static int get_file_size()
+{
+	int ret;
+	FILE *fp;
+	fp = fopen(filePath, "r");
+	if (fp == NULL) {
+		meddbg("file open failed error : %d\n", errno);
+		return -1;
+	}
+	if (fseek(fp, 0, SEEK_END) != 0) {
+		meddbg("fseek failed error : %d\n", errno);
+		fclose(fp);
+		return -1;
+	}
+	ret = ftell(fp);
+	fclose(fp);
+	return ret;
+}
+
+static void utc_media_MediaRecorder_setDuration_p(void)
+{
+	MediaRecorder mr;
+	unique_ptr<FileOutputDataSource> dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
+
+	auto observer = std::make_shared<RecorderTest>();
+	mr.create();
+	mr.setObserver(observer);
+	mr.setDataSource(std::move(dataSource));
+
+	TC_ASSERT_EQ("utc_media_MediaRecorder_setDuration", mr.setDuration(RECORD_DURATION), RECORDER_OK);
+	TC_ASSERT_EQ("utc_media_MediaRecorder_setDuration", mr.prepare(), RECORDER_OK);
+	mr.start();
+	sleep(RECORD_DURATION + 1);
+	mr.stop();
+	mr.unprepare();
+	mr.destroy();
+
+	int byte = 0;
+
+	switch (pcmFormat) {
+	case AUDIO_FORMAT_TYPE_S8:
+		byte = 1;
+		break;
+	case AUDIO_FORMAT_TYPE_S16_LE:
+		byte = 2;
+		break;
+	case AUDIO_FORMAT_TYPE_S32_LE:
+		byte = 4;
+		break;
+	default:
+		break;
+	}
+
+	TC_ASSERT_EQ("utc_media_MediaRecorder_setDuration", get_file_size(), (int)(RECORD_DURATION * channels * sampleRate * byte));
+
+	TC_SUCCESS_RESULT();
+}
+
+static void utc_media_MediaRecorder_setDuration_n(void)
+{
+	MediaRecorder mr;
+	unique_ptr<FileOutputDataSource> dataSource = unique_ptr<FileOutputDataSource>(new FileOutputDataSource(channels, sampleRate, pcmFormat, filePath));
+
+	auto observer = std::make_shared<RecorderTest>();
+	mr.create();
+	mr.setObserver(observer);
+	mr.setDataSource(std::move(dataSource));
+	mr.prepare();
+
+	TC_ASSERT_EQ("utc_media_MediaRecorder_setDuration", mr.setDuration(RECORD_DURATION), RECORDER_ERROR_INVALID_STATE);
+	mr.start();
+	observer->waitStarted();
+	mr.stop();
+	mr.unprepare();
+	mr.destroy();
+
+	TC_SUCCESS_RESULT();
+}
 
 static void utc_media_MediaRecorder_start_p(void)
 {
@@ -417,7 +516,7 @@ static void utc_media_MediaRecorder_setObserver_n(void)
 {
 	MediaRecorder mr;
 
-	TC_ASSERT_EQ("utc_media_MediaRecorder_setObserver", mr.setObserver(nullptr), RECORDER_ERROR);
+	TC_ASSERT_EQ("utc_media_MediaRecorder_setObserver", mr.setObserver(nullptr), RECORDER_ERROR_NOT_ALIVE);
 
 	TC_SUCCESS_RESULT();
 }
@@ -438,12 +537,15 @@ int utc_media_mediarecorder_main(void)
 
 	utc_media_MediaRecorder_getVolume_p();
 	utc_media_MediaRecorder_getVolume_n();
-	
+
 	utc_media_MediaRecorder_prepare_p();
 	utc_media_MediaRecorder_prepare_n();
 
 	utc_media_MediaRecorder_unprepare_p();
 	utc_media_MediaRecorder_unprepare_n();
+
+	utc_media_MediaRecorder_setDuration_p();
+	utc_media_MediaRecorder_setDuration_n();
 
 	utc_media_MediaRecorder_start_p();
 	utc_media_MediaRecorder_start_n();

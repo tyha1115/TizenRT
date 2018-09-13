@@ -20,17 +20,20 @@
  ****************************************************************************/
 #include <tinyara/config.h>
 #include <stdint.h>
-#include <errno.h>
+#include <string.h>
 #include <debug.h>
 #include <signal.h>
-#include <apps/builtin.h>
 #include <sys/types.h>
+
+#include <apps/builtin.h>
 #include <tinyara/sched.h>
 #include <tinyara/signal.h>
 #include <tinyara/fs/fs.h>
 #include <tinyara/fs/ioctl.h>
 #include <tinyara/wdog.h>
 #include <tinyara/task_manager_internal.h>
+
+#include "sched/sched.h"
 
 /****************************************************************************
  * Private Function Prototypes
@@ -107,7 +110,7 @@ static ssize_t taskmgr_write(FAR struct file *filep, FAR const char *buffer, siz
  ************************************************************************************/
 static int taskmgr_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
-	int ret = -EINVAL;
+	int ret = ERROR;
 	struct tcb_s *tcb;
 
 	tmvdbg("cmd: %d arg: %ld\n", cmd, arg);
@@ -152,6 +155,13 @@ static int taskmgr_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 		}
 		break;
 	case TMIOC_RESTART:
+		tcb = sched_gettcb((int)arg);
+		if (tcb == NULL) {
+			tmdbg("No task with this pid %d.\n", (int)arg);
+			return ERROR;
+		}
+		(void)sigprocmask(SIG_SETMASK, NULL, &tcb->sigprocmask);
+		ret = OK;
 		break;
 	case TMIOC_BROADCAST:
 		tcb = sched_gettcb((int)arg);
@@ -174,6 +184,28 @@ static int taskmgr_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 			return ERROR;
 		}
 		ret = OK;
+		break;
+	case TMIOC_TERMINATE:
+		tcb = sched_gettcb((int)arg);
+		if (tcb == NULL) {
+			tmdbg("Invalid pid\n");
+			return ERROR;
+		}
+		if ((tcb->flags & TCB_FLAG_TTYPE_MASK) >> TCB_FLAG_TTYPE_SHIFT == TCB_FLAG_TTYPE_TASK) {
+			ret = task_delete(tcb->pid);
+			if (ret != OK) {
+				return ERROR;
+			}
+		}
+#ifndef CONFIG_DISABLE_PTHREAD
+		else {
+			(void)pthread_detach(tcb->pid);
+			ret = pthread_cancel(tcb->pid);
+			if (ret != OK) {
+				return ERROR;
+			}
+		}
+#endif
 		break;
 	default:
 		tmdbg("Unrecognized cmd: %d arg: %ld\n", cmd, arg);

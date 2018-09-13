@@ -387,7 +387,7 @@ config PTHREAD_MUTEX_TYPES
 choice
 	prompt "pthread mutex robustness"
 	default PTHREAD_MUTEX_ROBUST if !DEFAULT_SMALL
-	default PTHREAD_UNSAFE if DEFAULT_SMALL
+	default PTHREAD_MUTEX_UNSAFE if DEFAULT_SMALL
 
 config PTHREAD_MUTEX_ROBUST
 	bool "Robust mutexes"
@@ -849,6 +849,33 @@ config SIG_SIGTM_BROADCAST
 		SIGTM_BROADCAST is a non-standard signal used to send broadcast message to
 		the internal TinyAra task manager. This setting specifies the signal number
 		that will be used for SIGTM_BROADCAST. Default: 21
+
+config SIG_SIGEL_WAKEUP
+	int "SIGEL_WAKEUP"
+	default 22
+	depends on EVENTLOOP
+	---help---
+		SIG_SIGEL_WAKEUP is a non-standard signal used to wake eventloop task up.
+		This setting specifies the signal number that will be used for SIG_SIGEL_WAKEUP.
+		Default: 22
+
+config SIG_SIGTM_TERMINATION
+	int "SIGTM_TERMINATION"
+	default 23
+	depends on TASK_MANAGER
+	---help---
+		SIGTM_TERMINATION is a non-standard signal used to send termination info to
+		the TinyAra task managed by task manager. This setting specifies the signal number
+		that will be used for SIGTM_TERMINATION. Default: 23
+
+config SIG_SIGEL_EVENT
+	int "SIGEL_EVENT"
+	default 24
+	depends on EVENTLOOP
+	---help---
+		SIG_SIGEL_EVENT is a non-standard signal used to wake eventloop task up.
+		This setting specifies the signal number that will be used for SIG_SIGEL_EVENT.
+		Default: 24
 
 endmenu # Signal Numbers
 

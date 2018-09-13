@@ -60,19 +60,19 @@ public:
 	 * param[in] dataPath The dataPath that the path of data
 	 * @since TizenRT v2.0 PRE
 	 */
-	FileInputDataSource(const std::string& dataPath);
+	FileInputDataSource(const std::string &dataPath);
 	/**
 	 * @brief Copy constructs for FileInputDataSource.
 	 * @details @b #include <media/FileInputDataSource.h>
 	 * @since TizenRT v2.0 PRE
 	 */
-	FileInputDataSource(const FileInputDataSource& source);
+	FileInputDataSource(const FileInputDataSource &source);
 	/**
 	 * @brief Operator= for FileInputDataSource.
 	 * @details @b #include <media/FileInputDataSource.h>
 	 * @since TizenRT v2.0 PRE
 	 */
-	FileInputDataSource& operator=(const FileInputDataSource& source);
+	FileInputDataSource &operator=(const FileInputDataSource &source);
 
 	/**
 	 * @brief Whether file is ready to be read.
@@ -95,33 +95,19 @@ public:
 	 * @since TizenRT v2.0 PRE
 	 */
 	bool close() override;
-
 	/**
-	 * @brief Gets the file data
+	 * @brief Read the file
 	 * @details @b #include <media/FileInputDataSource.h>
-	 * @param[out] buf The buf that read the data and fill it into the buffer
-	 * @param[in] size The size that the size of the buffer
-	 * @return if there is nothing to read, it returns 0
-	 *         if error occurred, it returns -1, else readead size returns
+	 * param[in] buf  pointer to a buffer
+	 * param[in] size size to be read
+	 * @return The number of elements read
 	 * @since TizenRT v2.0 PRE
 	 */
-	ssize_t read(unsigned char* buf, size_t size) override;
-
-	/**
-	 * @brief Gets the file data
-	 * @details @b #include <media/FileInputDataSource.h>
-	 * @param[in] offset The offset from origin
-	 * @param[in] origin Position used as reference
-	 * @param[out] buf The buf that read the data and fill it into the buffer
-	 * @param[in] size The size that the size of the buffer
-	 * @return if failed, it returns -1, else readead size returns
-	 * @since TizenRT v2.0
-	 */
-	int readAt(long offset, int origin, unsigned char* buf, size_t size) override;
+	ssize_t read(unsigned char *buf, size_t size) override;
 
 private:
 	std::string mDataPath;
-	FILE* mFp;
+	FILE *mFp;
 };
 } // namespace stream
 } // namespace media

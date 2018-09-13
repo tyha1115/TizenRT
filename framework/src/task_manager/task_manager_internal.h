@@ -20,6 +20,7 @@
 #define __TASK_MANAGER_INTERNAL_H__
 
 #include <tinyara/config.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -72,14 +73,12 @@
 /* Wrapper of allocation APIs */
 #define TM_ALLOC(a)  malloc(a)
 #define TM_FREE(a)   free(a)
+#define TM_ZALLOC(a) zalloc(a)
 #ifdef CONFIG_CPP_HAVE_VARARGS
 #define TM_ASPRINTF(p, f, ...) asprintf(p, f, ##__VA_ARGS__)
 #else
 #define TM_ASPRINTF asprintf
 #endif
-
-/* Temporary State for Cancel */
-#define TM_APP_STATE_CANCELLING -1
 
 /**
  * @brief Unicast Type
@@ -89,7 +88,7 @@
 
 struct tm_termination_info_s {
 	_tm_termination_t cb;
-	void *cb_data;
+	tm_msg_t *cb_data;
 };
 typedef struct tm_termination_info_s tm_termination_info_t;
 
@@ -156,12 +155,19 @@ struct tm_pthread_info_s {
 typedef struct tm_pthread_info_s tm_pthread_info_t;
 #endif
 
-struct tm_unicast_internal_msg_s {
+struct tm_internal_msg_s {
 	int msg_size;
 	void *msg;
 	int type;
 };
-typedef struct tm_unicast_internal_msg_s tm_unicast_internal_msg_t;
+typedef struct tm_internal_msg_s tm_internal_msg_t;
+
+struct tm_broadcast_internal_msg_s {
+	int size;
+	void *user_data;
+	tm_broadcast_info_t *info;
+};
+typedef struct tm_broadcast_internal_msg_s tm_broadcast_internal_msg_t;
 
 #define IS_INVALID_HANDLE(i) (i < 0 || i >= CONFIG_TASK_MANAGER_MAX_TASKS)
 
@@ -187,5 +193,7 @@ bool taskmgr_is_permitted(int handle, pid_t pid);
 int taskmgr_get_task_state(int handle);
 int taskmgr_get_drvfd(void);
 int taskmgr_get_handle_by_pid(int pid);
+int taskmgr_calc_time(struct timespec *time, int timeout);
+int taskmgr_get_task_manager_pid(void);
 
 #endif

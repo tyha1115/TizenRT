@@ -25,4 +25,12 @@
 #define EL_ALLOC(a)  malloc(a)
 #define EL_FREE(a)   free(a)
 
+/* A value for the state of async loop */
+#define ASYNCLOOP_RUNNING 0
+
+#define LOOP_IS_STOPPED(loop) (loop->stop_flag == 1)
+
+el_loop_t *get_app_loop(void);
+int get_async_task(void);
+
 #endif

@@ -31,6 +31,10 @@
 #ifndef WIFI_MANAGER_H
 #define WIFI_MANAGER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Length defines */
 #define WIFIMGR_MACADDR_LEN        6
 #define WIFIMGR_MACADDR_STR_LEN    17
@@ -134,7 +138,7 @@ typedef enum {
  * @brief Keep information of nearby access points as scan results
  */
 struct wifi_manager_scan_info_s {
-	char ssid[WIFIMGR_SSID_LEN + 1];        	// 802.11 spec defined unspecified or uint8
+	char ssid[WIFIMGR_SSID_LEN + 1];			// 802.11 spec defined unspecified or uint8
 	char bssid[WIFIMGR_MACADDR_STR_LEN + 1];	// char string e.g. xx:xx:xx:xx:xx:xx
 	int8_t rssi;		// received signal strength indication
 	uint8_t channel;	// channel/frequency
@@ -204,6 +208,20 @@ typedef struct {
 } wifi_manager_ap_config_s;
 
 /**
+ * @brief Specify Wi-Fi Manager internal stats information
+ */
+typedef struct {
+	uint16_t connect;
+	uint16_t connectfail;
+	uint16_t disconnect;
+	uint16_t reconnect;
+	uint16_t joined;
+	uint16_t left;
+	uint16_t scan;
+	uint16_t softap;
+} wifi_manager_stats_s;
+
+/**
  * @brief Initialize Wi-Fi Manager including starting Wi-Fi interface.
  * @details @b #include <wifi_manager/wifi_manager.h>
  * @param[in] wmcb callback functions called when wi-fi events happen
@@ -225,7 +243,7 @@ wifi_manager_result_e wifi_manager_deinit(void);
  * @brief Change the Wi-Fi mode to station or AP.
  * @details @b #include <wifi_manager/wifi_manager.h>
  * @param[in] mode Wi-Fi mode (station or AP)
- * @param[in] config In case of AP mode, AP configuration infomation should be given including ssid, channel, and passphrase.
+ * @param[in] config In case of AP mode, AP configuration information should be given including ssid, channel, and passphrase.
  * @return On success, WIFI_MANAGER_SUCCESS (i.e., 0) is returned. On failure, non-zero value is returned.
  * @since TizenRT v1.1
  */
@@ -282,7 +300,7 @@ wifi_manager_result_e wifi_manager_scan_ap(void);
 /**
  * @brief Save the AP configuration at persistent storage
  * @details @b #include <wifi_manager/wifi_manager.h>
- * @param[in] config AP configuration infomation should be given including ssid, channel, and passphrase.
+ * @param[in] config AP configuration information should be given including ssid, channel, and passphrase.
  * @return On success, WIFI_MANAGER_SUCCESS (i.e., 0) is returned. On failure, non-zero value is returned.
  * @since TizenRT v2.0 PRE
  */
@@ -291,7 +309,7 @@ wifi_manager_result_e wifi_manager_save_config(wifi_manager_ap_config_s *config)
 /**
  * @brief Get the AP configuration which was saved
  * @details @b #include <wifi_manager/wifi_manager.h>
- * @param[in] config The pointer of AP configuration infomation which will be filled
+ * @param[in] config The pointer of AP configuration information which will be filled
  * @return On success, WIFI_MANAGER_SUCCESS (i.e., 0) is returned. On failure, non-zero value is returned.
  * @since TizenRT v2.0 PRE
  */
@@ -307,33 +325,27 @@ wifi_manager_result_e wifi_manager_get_config(wifi_manager_ap_config_s *config);
 wifi_manager_result_e wifi_manager_remove_config(void);
 
 /**
- * @brief convert mac address (48bit) to mac address string (FF:FF:FF:FF:FF:FF)
- *
- * @param[in]  mac_addr  :  mac address 48bit
- * @param[out] mac_str   :  mac address string
- *
- * @return WIFI_MANAGER_SUCCESS       :  success
- * @return WIFI_MANAGER_FAIL          :  fail
- * @return WIFI_MANAGER_INVALID_ARGS  :  input parameter invalid
- * @since TinzeRT v2.0 PRE
+ * @brief Get the most recently connected AP configuration which was saved by Wi-Fi Manager
+ * @details @b #include <wifi_manager/wifi_manager.h>
+ * @param[in] config The pointer of AP configuration infomation which will be filled
+ * @return On success, WIFI_MANAGER_SUCCESS (i.e., 0) is returned. On failure, non-zero value is returned.
+ * @since TizenRT v2.0 PRE
  */
 
-wifi_manager_result_e wifi_manager_mac_addr_to_mac_str(char mac_addr[6], char mac_str[20]);
+wifi_manager_result_e wifi_manager_get_connected_config(wifi_manager_ap_config_s *config);
 
 /**
- * @brief convert mac address string (FF:FF:FF:FF:FF:FF)to mac address (48bit)
- *
- * @param[in]   mac_str   :  mac address string
- * @param[out]  mac_addr  :  mac address 48bit
- *
- * @return WIFI_MANAGER_SUCCESS       :  success
- * @return WIFI_MANAGER_FAIL          :  fail
- * @return WIFI_MANAGER_INVALID_ARGS  :  input parameter invalid
- * @since TinzeRT v2.0 PRE
+ * @brief Obtain WiFi Manager state stats
+ * @details @b #include <wifi_manager/wifi_manager.h>
+ * @param[in] The pointer of WiFi Manager stats information which will be filled
+ * @return On success, WIFI_MANAGER_SUCCESS (i.e., 0) is returned. On failure, non-zero value is returned.
+ * @since TizenRT v2.0 PRE
  */
+wifi_manager_result_e wifi_manager_get_stats(wifi_manager_stats_s *stats);
 
-wifi_manager_result_e wifi_manager_mac_str_to_mac_addr(char mac_str[20], char mac_addr[6]);
-
+#ifdef __cplusplus
+}
+#endif
 #endif
 /**
  *@}

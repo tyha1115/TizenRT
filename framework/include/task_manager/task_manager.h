@@ -32,6 +32,8 @@
 #include <signal.h>
 #include <pthread.h>
 
+#include <tinyara/task_manager_internal.h>
+
 /**
  * @brief Task State which managed by Task Manager
  */
@@ -39,6 +41,7 @@
 #define TM_APP_STATE_PAUSE        (2)
 #define TM_APP_STATE_STOP         (3)
 #define TM_APP_STATE_UNREGISTERED (4)
+#define TM_APP_STATE_CANCELLING   (5)
 
 /**
  * @brief Task Permission
@@ -69,17 +72,19 @@ enum tm_result_error_e {
 	TM_ALREADY_PAUSED_APP = -2,
 	TM_ALREADY_STOPPED_APP = -3,
 	TM_UNREGISTERED_APP = -4,
-	TM_OPERATION_FAIL = -5,
-	TM_COMMUCATION_FAIL = -6,
-	TM_BUSY = -7,
-	TM_INVALID_PARAM = -8,
-	TM_INVALID_DRVFD = -9,
-	TM_OUT_OF_MEMORY = -10,
-	TM_NO_PERMISSION = -11,
-	TM_NOT_SUPPORTED = -12,
-	TM_UNREGISTERED_MSG = -13,
-	TM_ALREADY_REGISTERED_CB = -14,
-	TM_REPLY_TIMEOUT = -15,
+	TM_CANCELLING_APP = -5,
+	TM_OPERATION_FAIL = -6,
+	TM_COMMUCATION_FAIL = -7,
+	TM_BUSY = -8,
+	TM_INVALID_PARAM = -9,
+	TM_INVALID_DRVFD = -10,
+	TM_OUT_OF_MEMORY = -11,
+	TM_NO_PERMISSION = -12,
+	TM_NOT_SUPPORTED = -13,
+	TM_UNREGISTERED_MSG = -14,
+	TM_ALREADY_REGISTERED_CB = -15,
+	TM_REPLY_TIMEOUT = -16,
+	TM_TASK_MGR_NOT_ALIVE = -17,
 };
 
 /**
@@ -98,46 +103,50 @@ enum tm_defined_broadcast_msg {
 #endif
 };
 /**
- * @brief Task Info Structure
+ * @brief Application Info Structure
  */
-struct app_info_s {
+struct tm_appinfo_s {
 	char *name;
 	int tm_gid;
 	int handle;
 	int status;
 	int permission;
 };
-typedef struct app_info_s app_info_t;
+typedef struct tm_appinfo_s tm_appinfo_t;
 
-struct app_info_list_s {
-	app_info_t task;
-	struct app_info_list_s *next;
+struct tm_appinfo_list_s {
+	tm_appinfo_t task;
+	struct tm_appinfo_list_s *next;
 };
-typedef struct app_info_list_s app_info_list_t;
+typedef struct tm_appinfo_list_s tm_appinfo_list_t;
 
 /**
  * @brief Unicast message Structure
  */
-struct tm_unicast_msg_s {
+struct tm_msg_s {
 	int msg_size;
 	void *msg;
 };
-typedef struct tm_unicast_msg_s tm_unicast_msg_t;
+typedef struct tm_msg_s tm_msg_t;
 
 /**
  * @brief Unicast callback function type
  */
-typedef void (*_tm_unicast_t)(tm_unicast_msg_t *);
+typedef void (*_tm_unicast_t)(tm_msg_t *);
 
 /**
  * @brief Broadcast callback function type
  */
-typedef void (*_tm_broadcast_t)(void *);
+typedef void (*_tm_broadcast_t)(void *, void *);
 
 /**
  * @brief Termination callback function type
  */
 typedef void (*_tm_termination_t)(void *);
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 /****************************************************************************
  * Public Function Prototypes
@@ -283,17 +292,22 @@ int task_manager_restart(int handle, int timeout);
  * @return On success, OK is returned. On failure, defined negative value is returned.
  * @since TizenRT v2.0 PRE
  */
-int task_manager_unicast(int handle, tm_unicast_msg_t *send_msg, tm_unicast_msg_t *reply_msg, int timeout);
+int task_manager_unicast(int handle, tm_msg_t *send_msg, tm_msg_t *reply_msg, int timeout);
 /**
  * @brief Request to send messages to the tasks
  * @details @b #include <task_manager/task_manager.h>
- * @param[in] msg message to be broadcasted
+ * @param[in] msg message structure to be unicasted
+ * @param[in] data data and its size to be broadcasted
+ * @param[in] timeout returnable flag. It can be one of the below.\n
+ *			TM_NO_RESPONSE : Ignore the response of request from task manager\n
+ *			TM_RESPONSE_WAIT_INF : Blocked until get the response from task manager\n
+ *			integer value : Specifies an upper limit on the time for which will block in milliseconds
  * @return On success, OK is returned. On failure, defined negative value is returned.\n
  *         (This return value only checks whether a broadcast message has been requested\n
  *          to the task manager to broadcast.)
  * @since TizenRT v2.0 PRE
  */
-int task_manager_broadcast(int msg);
+int task_manager_broadcast(int msg, tm_msg_t *data, int timeout);
 /**
  * @brief Set unicast callback function API
  * @details @b #include <task_manager/task_manager.h>
@@ -301,7 +315,7 @@ int task_manager_broadcast(int msg);
  * @return On success, OK is returned. On failure, defined negative value is returned.
  * @since TizenRT v2.0 PRE
  */
-int task_manager_set_unicast_cb(void (*func)(tm_unicast_msg_t *data));
+int task_manager_set_unicast_cb(void (*func)(tm_msg_t *data));
 /**
  * @brief Register callback function which will be used for processing a certain received broadcast message
  * @details @b #include <task_manager/task_manager.h>
@@ -312,29 +326,29 @@ int task_manager_set_unicast_cb(void (*func)(tm_unicast_msg_t *data));
  *            If this message is not pre defined at the <task_manager/task_manager.h> and <task_manager/task_manager_broadcast_list.h>,\n
  *            user should use task_manager_alloc_broadcast_msg() API to get a new broadacast message.
  * @param[in] func the callback function which will be called when a msg is received.
- * @param[in] cb_data a data pointer to pass to the callback function func.
+ * @param[in] cb_data a message structure to pass to the callback function func.
  * @return On success, OK is returned. On failure, defined negative value is returned.
  * @since TizenRT v2.0 PRE
  */
-int task_manager_set_broadcast_cb(int msg, void (*func)(void *data), void *cb_data);
+int task_manager_set_broadcast_cb(int msg, void (*func)(void *user_data, void *data), tm_msg_t *cb_data);
 /**
- * @brief Set callback function for resource deallocation API. If you set the callback, it will works when task terminates.
+ * @brief Set callback function called when task terminates normally.
  * @details @b #include <task_manager/task_manager.h>
  * @param[in] func the callback function that is called when the task or thread terminates normally.
  * @param[in] cb_data a data pointer to pass to the callback function func.
  * @return On success, OK is returned. On failure, defined negative value is returned.
  * @since TizenRT v2.0 PRE
  */
-int task_manager_set_exit_cb(void (*func)(void *data), void *cb_data);
+int task_manager_set_exit_cb(void (*func)(void *data), tm_msg_t *cb_data);
 /**
- * @brief Set callback function for resource deallocation API. If you set the callback, it will works when task is cancelled.
+ * @brief Set callback function called when task is stopped by task manager.
  * @details @b #include <task_manager/task_manager.h>
  * @param[in] func the callback function that is called when the task or thread is stopped by task manager.
  * @param[in] cb_data a data pointer to pass to the callback function func.
  * @return On success, OK is returned. On failure, defined negative value is returned.
  * @since TizenRT v2.0 PRE
  */
-int task_manager_set_stop_cb(void (*func)(void *data), void *cb_data);
+int task_manager_set_stop_cb(void (*func)(void *data), tm_msg_t *cb_data);
 /**
  * @brief Get task information list through task name
  * @details @b #include <task_manager/task_manager.h>
@@ -347,7 +361,7 @@ int task_manager_set_stop_cb(void (*func)(void *data), void *cb_data);
  * @return On success, the list of task information is returned(at the end of the list, NULL will be returned). On failure, NULL is returned.
  * @since TizenRT v2.0 PRE
  */
-app_info_list_t *task_manager_getinfo_with_name(char *name, int timeout);
+tm_appinfo_list_t *task_manager_getinfo_with_name(char *name, int timeout);
 /**
  * @brief Get task information through handle
  * @details @b #include <task_manager/task_manager.h>
@@ -360,7 +374,7 @@ app_info_list_t *task_manager_getinfo_with_name(char *name, int timeout);
  * @return On success, the task information is returned. On failure, NULL is returned.
  * @since TizenRT v2.0 PRE
  */
-app_info_t *task_manager_getinfo_with_handle(int handle, int timeout);
+tm_appinfo_t *task_manager_getinfo_with_handle(int handle, int timeout);
 /**
  * @brief Get task information list through group
  * @details @b #include <task_manager/task_manager.h>
@@ -373,7 +387,7 @@ app_info_t *task_manager_getinfo_with_handle(int handle, int timeout);
  * @return On success, the task information is returned. On failure, NULL is returned.
  * @since TizenRT v2.0 PRE
  */
-app_info_list_t *task_manager_getinfo_with_group(int group, int timeout);
+tm_appinfo_list_t *task_manager_getinfo_with_group(int group, int timeout);
 /**
  * @brief Get the handle through pid
  * @details @b #include <task_manager/task_manager.h>
@@ -385,7 +399,7 @@ app_info_list_t *task_manager_getinfo_with_group(int group, int timeout);
  * @return On success, the task information is returned. On failure, NULL is returned.
  * @since TizenRT v2.0 PRE
  */
-app_info_t *task_manager_getinfo_with_pid(int pid, int timeout);
+tm_appinfo_t *task_manager_getinfo_with_pid(int pid, int timeout);
 /**
  * @brief Clean task information
  * @details @b #include <task_manager/task_manager.h>
@@ -393,7 +407,7 @@ app_info_t *task_manager_getinfo_with_pid(int pid, int timeout);
  * @return none
  * @since TizenRT v2.0 PRE
  */
-void task_manager_clean_info(app_info_t **info);
+void task_manager_clean_info(tm_appinfo_t **info);
 /**
  * @brief Clean task information list
  * @details @b #include <task_manager/task_manager.h>
@@ -401,7 +415,7 @@ void task_manager_clean_info(app_info_t **info);
  * @return none
  * @since TizenRT v2.0 PRE
  */
-void task_manager_clean_infolist(app_info_list_t **info_list);
+void task_manager_clean_infolist(tm_appinfo_list_t **info_list);
 /**
  * @brief Send unicast reply message
  * @details @b #include <task_manager/task_manager.h>
@@ -409,7 +423,7 @@ void task_manager_clean_infolist(app_info_list_t **info_list);
  * @return On success, OK is returned. On failure, defined negative value is returned.
  * @since TizenRT v2.0 PRE
  */
-int task_manager_reply_unicast(tm_unicast_msg_t *reply_msg);
+int task_manager_reply_unicast(tm_msg_t *reply_msg);
 /**
  * @brief Allocate a new broadcast message which is not defined in the <task_manager/task_manager.h>\n
  *        and <task_manager/task_manager_broadcast_list.h>
@@ -442,6 +456,11 @@ int task_manager_unset_broadcast_cb(int msg, int timeout);
  * @since TizenRT v2.0 PRE
  */
 int task_manager_dealloc_broadcast_msg(int msg, int timeout);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
 #endif
 /**
  * @}
